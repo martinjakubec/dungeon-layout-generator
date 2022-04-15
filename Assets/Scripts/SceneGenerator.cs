@@ -8,10 +8,13 @@ using UnityEngine.SceneManagement;
 
 public class SceneGenerator : MonoBehaviour
 {
-    [SerializeField] int roomWidth;
-    [SerializeField] int roomHeight;
+    int roomWidth;
+    int roomHeight;
     [SerializeField] Vector2Int startPoint;
     [SerializeField] Grid grid;
+
+    [SerializeField] int minRoomHeight = 10;
+    [SerializeField] int maxRoomHeight = 20;
 
     private Tilemap baseTilemap;
     private Tilemap wallTilemap;
@@ -21,16 +24,19 @@ public class SceneGenerator : MonoBehaviour
     [SerializeField] TileBase wallTile;
     [SerializeField] TileBase doorTile;
 
-    [SerializeField] RoomsGenerator rb;
-
-    // Start is called before the first frame update
     void Start()
     {
+        roomHeight = UnityEngine.Random.Range(minRoomHeight, maxRoomHeight);
+        roomWidth = roomHeight / 9 * 16;
+        SetupCamera();
+        SetupPlayer();
+
         baseTilemap = GenerateTilemap("Floor Tilemap");
         wallTilemap = GenerateTilemap("Wall Tilemap");
         PopulateLayout(startPoint, roomWidth, roomHeight);
+        AddColidersToTilemap(wallTilemap, CustomTag.Obstacle);
 
-        AddColidersToTilemap(wallTilemap);
+        AddDoorsToMap();
     }
 
     private Tilemap GenerateTilemap(string tilemapName)
@@ -61,15 +67,49 @@ public class SceneGenerator : MonoBehaviour
         }
     }
 
-    private void AddColidersToTilemap(Tilemap tilemap)
+    private void AddColidersToTilemap(Tilemap tilemap, string tag)
     {
-        GameObject gameObject = tilemap.gameObject;
-        var collider = gameObject.AddComponent<TilemapCollider2D>();
+        GameObject tilemapGameObject = tilemap.gameObject;
+        var collider = tilemapGameObject.AddComponent<TilemapCollider2D>();
         collider.usedByComposite = true;
-        var compCollider = gameObject.AddComponent<CompositeCollider2D>();
-        var rb = gameObject.GetComponent<Rigidbody2D>();
+        var compCollider = tilemapGameObject.AddComponent<CompositeCollider2D>();
+        var rb = tilemapGameObject.GetComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Static;
+        tilemapGameObject.tag = tag;
+    }
+
+    private void AddDoorsToMap()
+    {
+        Tilemap doorTilemap = GenerateTilemap("DoorTilemap");
+        int sideMid = (roomWidth - 2) / 2;
+        int doorWidth;
+        if (roomWidth < 6)
+        {
+            doorWidth = 2;
+        }
+        else
+        {
+            doorWidth = 4;
+        }
+
+        for (int i = sideMid - (doorWidth / 2); i < sideMid + (doorWidth / 2); i++)
+        {
+            doorTilemap.SetTile(new Vector3Int(i, startPoint.y + roomHeight - 1, 0), doorTile);
+        }
+        AddColidersToTilemap(doorTilemap, CustomTag.Door);
+    }
+
+    private void SetupCamera()
+    {
+        Camera camera = Camera.main;
+        camera.transform.position = new Vector3(roomWidth / 2, roomHeight / 2f, 0);
+        camera.orthographicSize = roomHeight / 2f;
 
     }
 
+    private void SetupPlayer()
+    {
+        GameObject player = GameObject.Find("Player");
+        player.transform.position = new Vector3(roomWidth / 2, roomHeight / 2, 0);
+    }
 }
